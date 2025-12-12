@@ -2,24 +2,49 @@
 
 React + Vite 製の軽量 EDA UI です。`/data` 配下にある画像・CSV をそのまま配信し、BBox の可視化・フィルタ・簡易統計をブラウザで行えます。
 
+## 前提
+- Node.js 18 以上
+- Git（クローン用）
+
 ## セットアップ
-1. Node.jsを用意
-2. 依存インストール
-   ```bash
-   npm install
-   ```
-3. `data/` に画像とメタデータを配置  
-   - 既定: `data/images/*.jpg`, `data/atmaCup22_metadata/{train_meta,test_meta,test_top_meta}.csv`
-4. 開発サーバ
-   ```bash
-   npm run dev
-   ```
-   ブラウザで表示されるローカル URL にアクセス。
-5. 本番ビルド / プレビュー
-   ```bash
-   npm run build
-   npm run preview
-   ```
+```bash
+# クローン
+git clone https://github.com/ktm98/atmaCup22-EDA-app.git
+cd atmaCup22-EDA-app
+
+# 依存インストール
+npm install
+
+# data を配置（下記「データ配置」を参照）
+```
+
+### データ配置
+`/data` 配下に画像とメタデータを置きます。リポジトリと同じ階層構造で参照されるため、以下の形にしてください。
+
+```
+atmaCup22-EDA-app/
+├─ data/
+│  ├─ images/                       # 画像。ファイル名は {quarter}__{angle}__{session}__{frame}.jpg
+│  └─ atmaCup22_metadata/
+│     ├─ train_meta.csv
+│     ├─ test_meta.csv
+│     └─ test_top_meta.csv
+└─ src/ ...                         # アプリ本体
+```
+
+### 実行
+- 開発サーバ（ホットリロード）
+  ```bash
+  npm run dev
+  ```
+- 本番ビルド
+  ```bash
+  npm run build
+  ```
+- ビルド確認（ローカル静的サーバ）
+  ```bash
+  npm run preview
+  ```
 
 ## 主な機能
 - 画像への BBox オーバーレイ表示（ラベル色分け、ラベルなしは黄色）
