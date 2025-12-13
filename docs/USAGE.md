@@ -31,9 +31,9 @@
 - テーブルには先頭 20 BBox を表示。全件を見たい場合はフィルタを絞るかソースを直接確認。
 
 ## データについて
-- `/data/atmaCup22_metadata/{train_meta,test_meta,test_top_meta}.csv` を取得します。  
-- 画像パスは `{quarter}__{angle}__{session}__{frame}.jpg` を想定し、`/data/images` を参照します。
-- 別の CSV を追加する場合は `src/utils/metaLoader.ts` の `sourceFile` に追記してください。
+- `/data/atmaCup22_2nd_meta/{train_meta.csv,test_meta.csv}` を取得します。  
+- train 画像は `{quarter}__{angle}__{session}__{frame}.jpg` を想定し、`/data/images` を参照します。  
+- test 画像は crop のみで、`test_meta.csv` の `rel_path` を `/data/crops/` に連結したパスを参照します（例: `/data/crops/crops/Q4-000/sess_0001/top/...`）。
 
 ## よくある操作
 - **ラベル 12 の top カメラだけ見る**: Camera angle で `top` のみ、Label contains に `12`。  

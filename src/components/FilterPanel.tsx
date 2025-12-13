@@ -13,8 +13,7 @@ type Props = {
 
 const sourceLabel: Record<Source, string> = {
   train: 'train',
-  test: 'test',
-  test_top: 'test_top'
+  test: 'test'
 };
 
 const angleLabel: Record<CameraAngle, string> = {

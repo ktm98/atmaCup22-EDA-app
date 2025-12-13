@@ -19,16 +19,17 @@ npm install
 ```
 
 ### データ配置
-`/data` 配下に画像とメタデータを置きます。リポジトリと同じ階層構造で参照されるため、以下の形にしてください。
+`/data` 配下に画像とメタデータを置きます。2nd データセットに対応しています（旧 `atmaCup22_metadata` は不要）。
 
 ```
 atmaCup22-EDA-app/
 ├─ data/
 │  ├─ images/                       # 画像。ファイル名は {quarter}__{angle}__{session}__{frame}.jpg
-│  └─ atmaCup22_metadata/
-│     ├─ train_meta.csv
-│     ├─ test_meta.csv
-│     └─ test_top_meta.csv
+│  ├─ atmaCup22_2nd_meta/
+│  │  ├─ train_meta.csv             # 新しいメタデータ
+│  │  └─ test_meta.csv              # rel_path で crop 画像を指す
+│  └─ crops/
+│     └─ crops/                     # rel_path のルート。例: crops/Q4-000/sess_0001/top/xxx.jpg
 └─ src/ ...                         # アプリ本体
 ```
 

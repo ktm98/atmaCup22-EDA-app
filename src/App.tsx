@@ -10,7 +10,7 @@ import { CameraAngle, ImageRecord, MetaRow, Source, loadAllMeta } from './utils/
 import { matchesLabel } from './utils/filters';
 
 const defaultFilters: Filters = {
-  sources: ['train', 'test', 'test_top'],
+  sources: ['train', 'test'],
   angles: ['side', 'top'],
   quarterGroup: 'all',
   quarterCode: 'all',
@@ -91,7 +91,7 @@ function App() {
   }, [filteredImages, filters.labelQuery]);
 
   const summary: SummaryStats = useMemo(() => {
-    const datasetCounts: Record<Source, number> = { train: 0, test: 0, test_top: 0 };
+    const datasetCounts: Record<Source, number> = { train: 0, test: 0 };
     const angleCounts: Record<CameraAngle, number> = { side: 0, top: 0 };
     const labelSet = new Set<number>();
 

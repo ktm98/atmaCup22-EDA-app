@@ -1,8 +1,7 @@
 import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 const sourceLabel = {
     train: 'train',
-    test: 'test',
-    test_top: 'test_top'
+    test: 'test'
 };
 const angleLabel = {
     side: 'side',

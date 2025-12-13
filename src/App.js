@@ -9,7 +9,7 @@ import SummaryCards from './components/SummaryCards';
 import { loadAllMeta } from './utils/metaLoader';
 import { matchesLabel } from './utils/filters';
 const defaultFilters = {
-    sources: ['train', 'test', 'test_top'],
+    sources: ['train', 'test'],
     angles: ['side', 'top'],
     quarterGroup: 'all',
     quarterCode: 'all',
@@ -89,7 +89,7 @@ function App() {
         return filteredImages.flatMap((img) => img.boxes.filter((box) => matchesLabel(box, term)));
     }, [filteredImages, filters.labelQuery]);
     const summary = useMemo(() => {
-        const datasetCounts = { train: 0, test: 0, test_top: 0 };
+        const datasetCounts = { train: 0, test: 0 };
         const angleCounts = { side: 0, top: 0 };
         const labelSet = new Set();
         filteredBoxes.forEach((box) => {

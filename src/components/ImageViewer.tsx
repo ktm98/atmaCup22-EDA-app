@@ -33,6 +33,8 @@ const colorForLabel = (label: number | null) => {
   return `hsl(${hue}, 76%, 58%)`;
 };
 
+const TEST_CANVAS = { w: 3840, h: 2160 };
+
 export function ImageViewer({
   image,
   visibleBoxes,
@@ -56,28 +58,40 @@ export function ImageViewer({
   showBoxes,
   onToggleBoxes
 }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [naturalSize, setNaturalSize] = useState<Size>(null);
   const [renderSize, setRenderSize] = useState<Size>(null);
   const [hoveredBoxId, setHoveredBoxId] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (imgRef.current) {
+    const update = () => {
+      if (containerRef.current) {
         setRenderSize({
-          w: imgRef.current.clientWidth,
-          h: imgRef.current.clientHeight
+          w: containerRef.current.clientWidth,
+          h: containerRef.current.clientHeight
         });
       }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
   useEffect(() => {
-    setNaturalSize(null);
-    setRenderSize(null);
-  }, [image?.id]);
+    // Reset base size when画像が切り替わったとき。testは固定キャンバスサイズ。
+    const isTest = image?.source === 'test';
+    setNaturalSize(isTest ? TEST_CANVAS : null);
+    if (isTest && containerRef.current) {
+      setRenderSize({
+        w: containerRef.current.clientWidth,
+        h: containerRef.current.clientHeight
+      });
+    } else {
+      setRenderSize(null);
+    }
+    setHoveredBoxId(null);
+  }, [image?.id, image?.source]);
 
   useEffect(() => {
     setHoveredBoxId(null);
@@ -190,17 +204,61 @@ export function ImageViewer({
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 260px', alignItems: 'start' }}>
         <div>
-          <div style={{ position: 'relative' }}>
-            <img
-              ref={imgRef}
-              src={image.imagePath}
-              alt={image.id}
-              style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border)', display: 'block' }}
-              onLoad={(e) => {
-                setNaturalSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
-                setRenderSize({ w: e.currentTarget.clientWidth, h: e.currentTarget.clientHeight });
-              }}
-            />
+          <div
+            ref={containerRef}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '16 / 9',
+              background: '#000',
+              borderRadius: 12,
+              border: '1px solid var(--border)',
+              overflow: 'hidden'
+            }}
+          >
+            {image.source === 'train' ? (
+              <img
+                ref={imgRef}
+                src={image.imagePath}
+                alt={image.id}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                onLoad={(e) => {
+                  setNaturalSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
+                  setRenderSize({
+                    w: containerRef.current?.clientWidth ?? e.currentTarget.clientWidth,
+                    h: containerRef.current?.clientHeight ?? e.currentTarget.clientHeight
+                  });
+                }}
+              />
+            ) : (
+              // test: 背景は黒。すべての crop 画像を bbox 座標に貼り付ける
+              (renderSize && naturalSize) && (
+                <>
+                  {visibleBoxes.map((box) => {
+                    const left = box.x * scale.x;
+                    const top = box.y * scale.y;
+                    const width = box.w * scale.x;
+                    const height = box.h * scale.y;
+                    return (
+                      <img
+                        key={`${box.id}-img`}
+                        src={box.cropPath ?? image.imagePath}
+                        alt={image.id}
+                        style={{
+                          position: 'absolute',
+                          left,
+                          top,
+                          width,
+                          height,
+                          objectFit: 'fill'
+                        }}
+                      />
+                    );
+                  })}
+                </>
+              )
+            )}
+
             {naturalSize && renderSize && showBoxes && (
               <div
                 style={{

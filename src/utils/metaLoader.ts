@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 
-export type Source = 'train' | 'test' | 'test_top';
+export type Source = 'train' | 'test';
 export type CameraAngle = 'side' | 'top';
 
 export type MetaRow = {
@@ -17,6 +17,7 @@ export type MetaRow = {
   source: Source;
   imageId: string;
   imagePath: string;
+  cropPath?: string;
 };
 
 export type ImageRecord = {
@@ -30,7 +31,7 @@ export type ImageRecord = {
   boxes: MetaRow[];
 };
 
-type RawRow = {
+type TrainRow = {
   quarter: string;
   angle: CameraAngle;
   session: string;
@@ -42,29 +43,32 @@ type RawRow = {
   label_id?: string;
 };
 
-const sourceFile: Record<Source, string> = {
-  train: 'train_meta.csv',
-  test: 'test_meta.csv',
-  test_top: 'test_top_meta.csv'
+type TestRow = {
+  x: string;
+  y: string;
+  w: string;
+  h: string;
+  quarter: string;
+  session_no: string;
+  frame_in_session: string;
+  angle: CameraAngle;
+  rel_path: string;
 };
 
 const pad2 = (value: number | string) => String(value).padStart(2, '0');
 
-const buildImageId = (row: { quarter: string; angle: CameraAngle; session: number; frame: number }) => {
+const buildTrainImageId = (row: { quarter: string; angle: CameraAngle; session: number; frame: number }) => {
   return `${row.quarter}__${row.angle}__${pad2(row.session)}__${pad2(row.frame)}`;
 };
 
-export async function loadMetaForSource(source: Source): Promise<MetaRow[]> {
-  const file = sourceFile[source];
-  const response = await fetch(`/data/atmaCup22_metadata/${file}`);
-
+async function loadTrain(): Promise<MetaRow[]> {
+  const file = 'train_meta.csv';
+  const response = await fetch(`/data/atmaCup22_2nd_meta/${file}`);
   if (!response.ok) {
     throw new Error(`Failed to load ${file}: ${response.status}`);
   }
-
   const text = await response.text();
-  const parsed = Papa.parse<RawRow>(text, { header: true, skipEmptyLines: true });
-
+  const parsed = Papa.parse<TrainRow>(text, { header: true, skipEmptyLines: true });
   if (parsed.errors.length) {
     console.warn(`Parse errors for ${file}`, parsed.errors.slice(0, 3));
   }
@@ -77,11 +81,10 @@ export async function loadMetaForSource(source: Source): Promise<MetaRow[]> {
     const w = Number(row.w);
     const h = Number(row.h);
     const labelId = row.label_id === undefined || row.label_id === '' ? null : Number(row.label_id);
-
-    const imageId = buildImageId({ quarter: row.quarter, angle: row.angle, session, frame });
+    const imageId = buildTrainImageId({ quarter: row.quarter, angle: row.angle, session, frame });
 
     return {
-      id: `${source}-${idx}`,
+      id: `train-${idx}`,
       quarter: row.quarter,
       angle: row.angle,
       session,
@@ -91,21 +94,59 @@ export async function loadMetaForSource(source: Source): Promise<MetaRow[]> {
       w,
       h,
       labelId,
-      source,
+      source: 'train',
       imageId,
-      imagePath: `/data/images/${imageId}.jpg`
+      imagePath: `/data/images/${imageId}.jpg`,
+      cropPath: `/data/images/${imageId}.jpg`
+    };
+  });
+}
+
+async function loadTest(): Promise<MetaRow[]> {
+  const file = 'test_meta.csv';
+  const response = await fetch(`/data/atmaCup22_2nd_meta/${file}`);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${file}: ${response.status}`);
+  }
+  const text = await response.text();
+  const parsed = Papa.parse<TestRow>(text, { header: true, skipEmptyLines: true });
+  if (parsed.errors.length) {
+    console.warn(`Parse errors for ${file}`, parsed.errors.slice(0, 3));
+  }
+
+  return parsed.data.map((row, idx) => {
+    const session = Number(row.session_no);
+    const frame = Number(row.frame_in_session);
+    const x = Number(row.x);
+    const y = Number(row.y);
+    const w = Number(row.w);
+    const h = Number(row.h);
+    const relPath = row.rel_path.replace(/^[/\\\\]+/, '');
+    const imageId = `${row.quarter}|${row.angle}|${session}|${frame}`;
+
+    return {
+      id: `test-${idx}`,
+      quarter: row.quarter,
+      angle: row.angle,
+      session,
+      frame,
+      x,
+      y,
+      w,
+      h,
+      labelId: null,
+      source: 'test',
+      imageId,
+      imagePath: `/data/crops/${relPath}`,
+      cropPath: `/data/crops/${relPath}`
     };
   });
 }
 
 export async function loadAllMeta() {
-  const [train, test, testTop] = await Promise.all([
-    loadMetaForSource('train'),
-    loadMetaForSource('test'),
-    loadMetaForSource('test_top')
-  ]);
+  const [train, test] = await Promise.all([loadTrain(), loadTest()]);
 
-  const rows = [...train, ...test, ...testTop];
+  const rows = [...train, ...test];
   const imageMap = new Map<string, ImageRecord>();
 
   let minFrame = Infinity;
@@ -121,9 +162,14 @@ export async function loadAllMeta() {
     maxSession = Math.max(maxSession, row.session);
     quarters.add(row.quarter);
 
-    if (!imageMap.has(row.imageId)) {
-      imageMap.set(row.imageId, {
-        id: row.imageId,
+    const key =
+      row.source === 'test'
+        ? `${row.quarter}|${row.angle}|${row.session}|${row.frame}`
+        : row.imageId;
+
+    if (!imageMap.has(key)) {
+      imageMap.set(key, {
+        id: key,
         quarter: row.quarter,
         angle: row.angle,
         session: row.session,
@@ -134,7 +180,7 @@ export async function loadAllMeta() {
       });
     }
 
-    imageMap.get(row.imageId)!.boxes.push(row);
+    imageMap.get(key)!.boxes.push(row);
   });
 
   return {

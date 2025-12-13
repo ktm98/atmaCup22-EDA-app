@@ -1,16 +1,11 @@
 import Papa from 'papaparse';
-const sourceFile = {
-    train: 'train_meta.csv',
-    test: 'test_meta.csv',
-    test_top: 'test_top_meta.csv'
-};
 const pad2 = (value) => String(value).padStart(2, '0');
-const buildImageId = (row) => {
+const buildTrainImageId = (row) => {
     return `${row.quarter}__${row.angle}__${pad2(row.session)}__${pad2(row.frame)}`;
 };
-export async function loadMetaForSource(source) {
-    const file = sourceFile[source];
-    const response = await fetch(`/data/atmaCup22_metadata/${file}`);
+async function loadTrain() {
+    const file = 'train_meta.csv';
+    const response = await fetch(`/data/atmaCup22_2nd_meta/${file}`);
     if (!response.ok) {
         throw new Error(`Failed to load ${file}: ${response.status}`);
     }
@@ -27,9 +22,9 @@ export async function loadMetaForSource(source) {
         const w = Number(row.w);
         const h = Number(row.h);
         const labelId = row.label_id === undefined || row.label_id === '' ? null : Number(row.label_id);
-        const imageId = buildImageId({ quarter: row.quarter, angle: row.angle, session, frame });
+        const imageId = buildTrainImageId({ quarter: row.quarter, angle: row.angle, session, frame });
         return {
-            id: `${source}-${idx}`,
+            id: `train-${idx}`,
             quarter: row.quarter,
             angle: row.angle,
             session,
@@ -39,19 +34,54 @@ export async function loadMetaForSource(source) {
             w,
             h,
             labelId,
-            source,
+            source: 'train',
             imageId,
-            imagePath: `/data/images/${imageId}.jpg`
+            imagePath: `/data/images/${imageId}.jpg`,
+            cropPath: `/data/images/${imageId}.jpg`
+        };
+    });
+}
+async function loadTest() {
+    const file = 'test_meta.csv';
+    const response = await fetch(`/data/atmaCup22_2nd_meta/${file}`);
+    if (!response.ok) {
+        throw new Error(`Failed to load ${file}: ${response.status}`);
+    }
+    const text = await response.text();
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    if (parsed.errors.length) {
+        console.warn(`Parse errors for ${file}`, parsed.errors.slice(0, 3));
+    }
+    return parsed.data.map((row, idx) => {
+        const session = Number(row.session_no);
+        const frame = Number(row.frame_in_session);
+        const x = Number(row.x);
+        const y = Number(row.y);
+        const w = Number(row.w);
+        const h = Number(row.h);
+        const relPath = row.rel_path.replace(/^[/\\\\]+/, '');
+        const imageId = `${row.quarter}|${row.angle}|${session}|${frame}`;
+        return {
+            id: `test-${idx}`,
+            quarter: row.quarter,
+            angle: row.angle,
+            session,
+            frame,
+            x,
+            y,
+            w,
+            h,
+            labelId: null,
+            source: 'test',
+            imageId,
+            imagePath: `/data/crops/${relPath}`,
+            cropPath: `/data/crops/${relPath}`
         };
     });
 }
 export async function loadAllMeta() {
-    const [train, test, testTop] = await Promise.all([
-        loadMetaForSource('train'),
-        loadMetaForSource('test'),
-        loadMetaForSource('test_top')
-    ]);
-    const rows = [...train, ...test, ...testTop];
+    const [train, test] = await Promise.all([loadTrain(), loadTest()]);
+    const rows = [...train, ...test];
     const imageMap = new Map();
     let minFrame = Infinity;
     let maxFrame = -Infinity;
@@ -64,9 +94,12 @@ export async function loadAllMeta() {
         minSession = Math.min(minSession, row.session);
         maxSession = Math.max(maxSession, row.session);
         quarters.add(row.quarter);
-        if (!imageMap.has(row.imageId)) {
-            imageMap.set(row.imageId, {
-                id: row.imageId,
+        const key = row.source === 'test'
+            ? `${row.quarter}|${row.angle}|${row.session}|${row.frame}`
+            : row.imageId;
+        if (!imageMap.has(key)) {
+            imageMap.set(key, {
+                id: key,
                 quarter: row.quarter,
                 angle: row.angle,
                 session: row.session,
@@ -76,7 +109,7 @@ export async function loadAllMeta() {
                 boxes: []
             });
         }
-        imageMap.get(row.imageId).boxes.push(row);
+        imageMap.get(key).boxes.push(row);
     });
     return {
         rows,
